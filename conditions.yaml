@@ -1,0 +1,40 @@
+---
+Parameters:
+  EnvironmentType:
+    Type: String
+    Default: test
+    AllowedValues:
+      - test
+      - dev
+      - prod
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+  AvailabilityZone:
+    Type: AWS::EC2::AvailabilityZone::Name
+
+Conditions:
+  ProdCondition: !Equals [!Ref EnvironmentType, prod]
+
+Resources:
+  ProxyServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: ami-0aef57767f5404a3c # Ubuntu 20.04 LTS
+      AvailabilityZone: !Ref AvailabilityZone
+      KeyName: !Ref KeyName
+      Monitoring: !If [ProdCondition, "true", "false"]
+
+  ProxyServerEIP:
+    Type: AWS::EC2::EIP
+    Condition: ProdCondition
+    Properties:
+      InstanceId: !Ref ProxyServer
+
+Outputs:
+  ProxyServerIP:
+    Description: ProxyServer private IP address
+    Value: !GetAtt ProxyServer.PrivateIp
+    Condition: ProdCondition
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", ProxyServerIP]]
