@@ -1,2 +1,9 @@
-# experiment-cloudformation
-AWS CloudFormation notes
+# AWS CloudFormation
+
+### Basics
+
+- Parameters
+- Resources
+- Outputs
+- Mappings
+- Conditions
