@@ -1,0 +1,43 @@
+---
+Parameters:
+  EnvironmentType:
+    Type: String
+    Default: test
+    AllowedValues:
+      - test
+      - dev
+      - prod
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+  AvailabilityZone:
+    Type: AWS::EC2::AvailabilityZone::Name
+
+Mappings:
+  RegionMap:
+    test:
+      HVM64: "ami-0ff8a91507f77f867"
+      HVMG2: "ami-0a584ac55a7631c0c"
+    dev:
+      HVM64: "ami-0bdb828fd58c52235"
+      HVMG2: "ami-066ee5fd4a9ef77f1"
+    prod:
+      HVM64: "ami-0bdb828fd58c52235"
+      HVMG2: "ami-066ee5fd4a9ef77f1"
+
+Conditions:
+  ProdCondition: !Equals [!Ref EnvironmentType, prod]
+
+Resources:
+  ProxyServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: ami-0aef57767f5404a3c # Ubuntu 20.04 LTS
+      AvailabilityZone: !Ref AvailabilityZone
+      KeyName: !Ref KeyName
+      Monitoring: !If [ProdCondition, "true", "false"]
+
+Outputs:
+  ProxyServerIP:
+    Description: ProxyServer public IP address
+    Value: !GetAtt ProxyServer.PublicIp
