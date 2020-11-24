@@ -13,16 +13,15 @@ Parameters:
     Type: AWS::EC2::AvailabilityZone::Name
 
 Mappings:
-  RegionMap:
-    test:
-      HVM64: "ami-0ff8a91507f77f867"
-      HVMG2: "ami-0a584ac55a7631c0c"
-    dev:
-      HVM64: "ami-0bdb828fd58c52235"
-      HVMG2: "ami-066ee5fd4a9ef77f1"
-    prod:
-      HVM64: "ami-0bdb828fd58c52235"
-      HVMG2: "ami-066ee5fd4a9ef77f1"
+  RegionEnvMap:
+    eu-west-1:
+      test: "c4.large"
+      dev: "c4.large"
+      prod: "c4.xlarge"
+    eu-north-1:
+      test: "c5a.large"
+      dev: "c5a.large"
+      prod: "c5a.xlarge"
 
 Conditions:
   ProdCondition: !Equals [!Ref EnvironmentType, prod]
@@ -31,13 +30,33 @@ Resources:
   ProxyServer:
     Type: AWS::EC2::Instance
     Properties:
-      InstanceType: t3.micro
+      InstanceType: !FindInMap [RegionEnvMap, !Ref "AWS::Region", !Ref EnvironmentType]
       ImageId: ami-0aef57767f5404a3c # Ubuntu 20.04 LTS
       AvailabilityZone: !Ref AvailabilityZone
       KeyName: !Ref KeyName
       Monitoring: !If [ProdCondition, "true", "false"]
 
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable 22
+      SecurityGroupIngress:
+        - CidrIp: !Sub
+            - "${ip}/32"
+            - ip: !ImportValue stack1:ProxyServerIP
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+        - CidrIp: !Sub
+            - ${ip}/${size}
+            - { ip: !GetAtt ProxyServer.PublicIp, size: 32 }
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+
 Outputs:
   ProxyServerIP:
     Description: ProxyServer public IP address
     Value: !GetAtt ProxyServer.PublicIp
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", ProxyServerIP]]
