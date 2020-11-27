@@ -35,23 +35,36 @@ Resources:
       AvailabilityZone: !Ref AvailabilityZone
       KeyName: !Ref KeyName
       Monitoring: !If [ProdCondition, "true", "false"]
+      UserData:
+        Fn::Base64: 
+          Fn::Sub:
+            - |
+              #!/bin/bash -xe
+              apt update
+              apt install nginx -y
+              echo "IP:${ProxyServer.PrivateIp}<br />AZ: ${AvailabilityZone}<br />Env: ${env}<br />Region: ${AWS::Region}<br />" > /var/www/html/index.htm
+            - env: !Ref EnvironmentType
 
   SSHSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Enable 22
       SecurityGroupIngress:
-        - CidrIp: !Sub
-            - "${ip}/32"
-            - ip: !ImportValue stack1:ProxyServerIP
-          FromPort: 22
-          IpProtocol: tcp
-          ToPort: 22
+        # - CidrIp: !Sub
+        #     - "${ip}/32"
+        #     - ip: !ImportValue stack1:ProxyServerIP
+        #   FromPort: 22
+        #   IpProtocol: tcp
+        #   ToPort: 22
         - CidrIp: !Sub
             - ${ip}/${size}
             - { ip: !GetAtt ProxyServer.PublicIp, size: 32 }
-          FromPort: 22
           IpProtocol: tcp
+          FromPort: 4000
+          ToPort: 4000
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 22
           ToPort: 22
 
 Outputs:
@@ -60,3 +73,25 @@ Outputs:
     Value: !GetAtt ProxyServer.PublicIp
     Export:
       Name: !Join [":", [!Ref "AWS::StackName", ProxyServerIP]]
+  Out1:
+    Value:
+      Fn::Select:
+        - 0
+        - Fn::Split:
+            - ","
+            - network,server,domain
+  Out2:
+    Value: 
+      Fn::Join:
+        - "."
+        - - 192
+          - 168
+          - 1
+          - 1
+  Out3:
+    Value:
+      Fn::Select:
+        - 0
+        - Fn::GetAZs:
+            Ref:
+              "AWS::Region"
