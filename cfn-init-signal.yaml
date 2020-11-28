@@ -1,0 +1,63 @@
+---
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+
+Resources:
+  ProxyServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: ami-0ce1e3f77cd41957e # Amazon Linux 2
+      KeyName: !Ref KeyName
+      UserData:
+        Fn::Base64:
+          Fn::Sub: |
+            #!/bin/bash -xe
+            yum update
+            yum install -y aws-cfn-bootstrap
+            curl -sL https://rpm.nodesource.com/setup_14.x | sudo bash -
+            /opt/aws/bin/cfn-init -s ${AWS::StackId} --region ${AWS::Region} -r ProxyServer
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource WaitCondition --region ${AWS::Region}
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              python3: []
+              nodejs: []
+              docker: []
+          files:
+            "/var/www/html/index.html":
+              content:
+                Fn::Sub:
+                  - |
+                    Env: ${env}<br />
+                    Region: ${AWS::Region}<br />
+                  - env: "Env var 1"
+          commands:
+            01_nginx:
+              command: amazon-linux-extras install nginx1
+            02_python:
+              command: python3 -V
+            03_node:
+              command: node -v
+            04_pm2:
+              command: npm install pm2 -g
+          services:
+            sysvinit:
+              nginx:
+                enabled: "true"
+                ensureRunning: "true"
+
+  WaitCondition:
+    Type: AWS::CloudFormation::WaitCondition
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT3M
+        Count: 1
+
+Outputs:
+  ProxyServerIP:
+    Description: ProxyServer public IP address
+    Value: !GetAtt ProxyServer.PublicIp
