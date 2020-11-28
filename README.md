@@ -10,6 +10,8 @@
 - WaitCondition
 - cfn-init
 - cfn-signal
+- nested stack
+- DeletionPolicy
 
 ### Intrinsic functions
 
