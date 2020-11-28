@@ -1,0 +1,20 @@
+Parameters:
+  ImageId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2 # from public SSM
+  InstanceType:
+    Type: "AWS::SSM::Parameter::Value<String>"
+    Default: /EC2/AppServer/InstanceType # from own SSM
+
+Resources:
+  AppServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+
+Outputs:
+  ImageId:
+    Value: !Ref ImageId
+  InstanceType:
+    Value: !Ref InstanceType
