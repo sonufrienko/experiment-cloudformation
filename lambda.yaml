@@ -1,0 +1,88 @@
+Parameters:
+  S3StorageBucketName:
+    Type: String
+  FunctionsS3BucketName:
+    Type: String
+  ZippedFunctionS3Key:
+    Type: String
+
+Resources:
+  InlineFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:*"
+                Resource: !Sub "arn:aws:s3:::${S3StorageBucketName}"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+
+  InlineFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: The lambda function with inline source code
+      FunctionName: test-InlineFunction
+      Runtime: python3.8
+      Code:
+        ZipFile: |
+          import os
+          import boto3
+
+          s3 = boto3.client("s3")
+
+          def handler(event, context):
+            objects = []
+            response = s3.list_objects(Bucket=os.environ['BUCKET_NAME'], MaxKeys=100,)
+            for obj in response["Contents"]:
+                objects.append(
+                    {
+                        "key": obj["Key"],
+                        "last_modified": obj["LastModified"].isoformat(),
+                        "size": obj["Size"],
+                    }
+                )
+
+            return objects
+      Handler: index.handler
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref S3StorageBucketName
+      MemorySize: 128
+      Timeout: 5
+      Role: !GetAtt InlineFunctionRole.Arn
+
+  ZippedFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.8
+      FunctionName: test-ZippedFunction
+      Code:
+        S3Bucket: !Ref FunctionsS3BucketName
+        S3Key: !Ref ZippedFunctionS3Key
+      Handler: index.handler
+      MemorySize: 128
+      Timeout: 5
+      Role: !GetAtt InlineFunctionRole.Arn
+
+Outputs:
+  InlineFunctionArn:
+    Value: !GetAtt InlineFunction.Arn
